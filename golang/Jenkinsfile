@@ -1,0 +1,73 @@
+pipeline {
+    agent any
+
+    environment {
+      BUILD_DIR="go/src/git.../somedir"
+      BINARY_NAME="backend"
+      NODE_NAME="node"
+    }
+
+    stages {
+
+    //Stage TOP
+        stage("Build") {
+            steps {
+                sh '''#!/bin/bash
+                    export PATH=$PATH:/usr/local/go/bin
+                    cd ~/${BUILD_DIR}
+                    go build -o ${BINARY_NAME} cmd/*.go 
+                '''
+            }
+        }
+    // Stage BOTTOM
+
+    //Stage TOP
+        stage("Preserve last binary") {
+            steps { 
+                sh 'ssh ${NODE_NAME} mv /usr/local/bin/${BINARY_NAME} /usr/local/bin/${BINARY_NAME}.old'
+            }
+        }
+    // Stage BOTTOM
+
+    //Stage TOP  
+        stage("Deploy") {
+            steps {
+                sh 'scp ~/${BUILD_DIR}/${BINARY_NAME} ${NODE_NAME}:'
+            }
+        }
+    // Stage BOTTOM
+
+    //Stage TOP
+        stage("Change permissions") {
+            steps {
+                sh 'ssh ${NODE_NAME} sudo chmod 755 ${BINARY_NAME}'
+            }
+        }
+    // Stage BOTTOM
+
+    //Stage TOP
+        stage("Change owner") {
+            steps {
+                sh 'ssh ${NODE_NAME} sudo chown root. ${BINARY_NAME}'
+            }
+        }
+    // Stage BOTTOM
+
+    //Stage TOP
+        stage("Move binary to correct directory") {
+            steps {
+                sh 'ssh ${NODE_NAME} sudo mv ${BINARY_NAME} /usr/local/bin'
+            }
+        }
+    // Stage BOTTOM
+    }
+
+    //Stage TOP
+        stage("Restart systemd") {
+            steps {
+                sh 'ssh ${NODE_NAME} sudo systemctl restart ${BINARY_NAME}'
+            }
+        }
+    // Stage BOTTOM
+    }
+}
